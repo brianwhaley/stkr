@@ -21,6 +21,14 @@ function querystringToJSON(qs) {
 
 
 
+exports.getTeamId = getTeamId;
+function getTeamId(team_id, env){
+    return (env != "PROD") ? team_id + "-" + env : team_id ;
+}
+
+
+
+
 exports.getFileInfo = getFileInfo;
 async function getFileInfo(file_id, b_token){
     // ==#####== GET FILE INFO ==#####==
@@ -204,3 +212,8 @@ async function slackApiPost(message, data){
         if(log) console.log("SLACKAPIPOST - Request Results : ", request);
     });
 }
+
+
+
+
+

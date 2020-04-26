@@ -16,7 +16,7 @@ exports.isS3Object = isS3Object;
 async function isS3Object(data){
     if(log) console.log("ISS3OBJECT - Data : ", data);
     try {
-        const params = { Bucket: "stkr-bucket", Key: data.team_id + "/" + data.filename };
+        const params = { Bucket: stkrBucket, Key: data.team_id + "/" + data.filename };
         const result = await S3.headObject(params).promise();
         return true;
     } catch(err) {
@@ -80,14 +80,38 @@ async function deleteImgFromS3(data){
 
 
 
+
+
+exports.emptyS3Directory = emptyS3Directory;
+async function emptyS3Directory(data) {
+    const listParams = {
+        Bucket: stkrBucket,
+        Prefix: data.team_id + "/"
+    };
+    const listedObjects = await S3.listObjectsV2(listParams).promise();
+    if (listedObjects.Contents.length === 0) return null;
+    const deleteParams = {
+        Bucket: stkrBucket,
+        Delete: { Objects: [] }
+    };
+    listedObjects.Contents.forEach(({ Key }) => {
+        deleteParams.Delete.Objects.push({ Key });
+    });
+    await S3.deleteObjects(deleteParams).promise();
+    if (listedObjects.IsTruncated) await emptyS3Directory(data);
+}
+
+
+
+
 exports.getCount = getCount;
-async function getCount(event){
-    if(log) console.log("GETCOUNT - Event : ", event);
-    var params = { Bucket: "stkr-bucket", Prefix: event.team_id + "/" };
-    let data;
+async function getCount(data){
+    if(log) console.log("GETCOUNT - Event : ", data);
+    var params = { Bucket: stkrBucket, Prefix: data.team_id + "/" };
+    let retdata;
     let images = 0;
-    data = await S3.listObjectsV2(params).promise();
-    images = data.Contents.length ;
+    retdata = await S3.listObjectsV2(params).promise();
+    images = retdata.Contents.length ;
     if(log) console.log("GETCOUNT - Image Count : ", images);
     return(images);
 }
@@ -97,14 +121,14 @@ async function getCount(event){
 
 
 exports.getList = getList;
-async function getList(event){
-    if(log) console.log("GETLIST - Event : ", event);
-    var params = { Bucket: "stkr-bucket", Prefix: event.team_id + "/" };
-    let data;
+async function getList(data){
+    if(log) console.log("GETLIST - Event : ", data);
+    var params = { Bucket: stkrBucket, Prefix: data.team_id + "/" };
+    let retdata;
     let images = [];
-    data = await S3.listObjectsV2(params).promise();
-    for (let index = 0; index < data.Contents.length; index++) {
-        var key = data.Contents[index].Key;
+    retdata = await S3.listObjectsV2(params).promise();
+    for (let index = 0; index < retdata.Contents.length; index++) {
+        var key = retdata.Contents[index].Key;
         // images += key.replace(params.Prefix, '') + " \n"; 
         var image = { text: key.replace(params.Prefix, "") , value: key.replace(params.Prefix, "") };
         images.push(image);
@@ -143,58 +167,10 @@ async function writeToDynamo(data){
 
 
 
-/* 
-exports.readFromDynamo = readFromDynamo;
-async function readFromDynamo(data){
-    if(log) console.log("READFROMDYNAMO - Data", data);
-    var params = {
-        TableName: stkrDB,
-        Key: { team_id : {S: data.team_id} }//,
-        //ProjectionExpression: 'ATTRIBUTE_NAME'
-    };
-    console.log("READFROMDYNAMO - Params : ", params)
-    return new Promise((resolve, reject) => {
-        DDB.getItem(params, (error, getData) => {
-            if (error) {
-                if(log) console.log("READFROMDYNAMO - Error", error);
-                reject(error);
-            } else {
-                if(log) console.log("READFROMDYNAMO - Success" - getData);
-                resolve(getData);
-            }
-        });
-    });
-}
-*/
-
-
-
 
 
 
 exports.readFromDynamo = readFromDynamo;
-/* 
-async function readFromDynamo(data){
-    if(log) console.log("READFROMDYNAMO - Data", data);
-    var params = {
-        TableName: stkrDB,
-        Key: { "team_id" : data.team_id } //,
-        //ProjectionExpression: 'ATTRIBUTE_NAME'
-    };
-    console.log("READFROMDYNAMO - Params : ", params)
-    return new Promise((resolve, reject) => {
-        DDBCLIENT.get(params, function(error, getData){
-            if (error) {
-                if(log) console.log("READFROMDYNAMO - Error", error);
-                reject(error);
-            } else {
-                if(log) console.log("READFROMDYNAMO - Success" - getData);
-                resolve(getData);
-            }
-        });
-    });
-}
-*/
 async function readFromDynamo(data){
     if(log) console.log("READFROMDYNAMO - Data", data);
     try {
@@ -209,4 +185,29 @@ async function readFromDynamo(data){
     } catch (error) {
         if(log) console.log("READFROMDYNAMO - Error", error);
     }
+}
+
+
+
+
+
+exports.deleteFromDynamo = deleteFromDynamo;
+async function deleteFromDynamo(data){
+    if(log) console.log("DELETEFROMDYNAMO - Data", data);
+    var params = {
+        TableName: stkrDB,
+        Key: { "team_id" : {S: data.team_id } } 
+    };
+    return new Promise((resolve, reject) => {
+        DDB.deleteItem(params, (error, deldata) => {
+            if (error) {
+                if(log) console.log("DELETEFROMDYNAMO - Error", error);
+                reject(error);
+            } else {
+                if(log) console.log("DELETEFROMDYNAMO - Success");
+                if(log) console.log("DELETEFROMDYNAMO - Delete Data", deldata)
+                resolve(deldata);
+            }
+        });
+    });
 }

@@ -6,6 +6,9 @@ const maxImages = 50;
 let a_token;
 let b_token;
 let v_token;
+let c_id;
+let c_secret;
+let env;
 const log = true;
 
 
@@ -14,12 +17,18 @@ const log = true;
 exports.handler = async function(data, context) {
     // ==#####== STKR APP SETUP ==#####==
     if(log) console.log('STKR - Received DATA:', JSON.stringify(data));
-    a_token = data.stageVariables.ACCESS_TOKEN;
-    b_token = data.stageVariables.BOT_TOKEN;
-    v_token = data.stageVariables.VERIFICATION_TOKEN;
+    let stageVars = data.stageVariables;
+    if(log) console.log('STKR - Received Stage Variables:', JSON.stringify(stageVars));
+    a_token = stageVars.ACCESS_TOKEN;
+    b_token = stageVars.BOT_TOKEN;
+    v_token = stageVars.VERIFICATION_TOKEN;
+    c_id = stageVars.CLIENT_ID;
+    c_secret = stageVars.CLIENT_SECRET;
+    env = stageVars.ENV;
     if(log) console.log('STKR - Received Context:', JSON.stringify(context));
     let event ;
     let result ;
+    let team_id ;
     if(data.headers['Content-Type'] == "application/json"){
         // ==#####== POST ==#####==
         event = JSON.parse(data.body);
@@ -43,9 +52,10 @@ exports.handler = async function(data, context) {
 
     if (event.code) {
         // ==#####== OAUTH REQUEST - APP INSTALL ==#####==
+        // ==#####== THIS IS A WEB BASED REQUEST ==#####==
         let oaMsg = {
-            client_id: "1058085085824.1058509925568",
-            client_secret: "8348f48ca05725a33f0657636b045251",
+            client_id: c_id,
+            client_secret: c_secret,
             code: event.code ,
             //redirect_uri: null
         };
@@ -54,16 +64,27 @@ exports.handler = async function(data, context) {
             api_method: "oauth.v2.access"
         };
         let oauthaccess = await slacktools.slackApiGet(oaMsg, oaData);
+        team_id = slacktools.getTeamId(oauthaccess.team.id, env) ;
         let storeAuth = await awstools.writeToDynamo({
-            team_id: oauthaccess.team.id,
+            team_id: team_id ,
             access_token: oauthaccess.access_token,
             response: JSON.stringify(oauthaccess)
         });
-        result = oauthaccess;
-    } else {
+        // result = oauthaccess;
+        return {
+            statusCode: 302,
+            headers: {
+                "Location": "https://pixelated.tech/stkr.html"
+            },
+            body: null
+        };
+    } else if (event.hasOwnProperty("team_id") || event.hasOwnProperty("team")) {
         // ==#####== GET AUTH TOKEN ==#####==
-        var team_id;
-        if (event.team_id) { team_id = event.team_id } else if(event.team.id) { team_id = event.team.id }
+        if (event.team_id) { 
+            team_id = slacktools.getTeamId(event.team_id, env) ;
+        } else if(event.team.id) { 
+            team_id = slacktools.getTeamId(event.team.id, env) ;
+        }
         console.log("STKR - Team ID : ", team_id);
         let getAuth = await awstools.readFromDynamo({
             team_id: team_id
@@ -73,16 +94,25 @@ exports.handler = async function(data, context) {
     }
     
     
-    
-    if (event.type) {
-        if(log) console.log("STKR - Event Type: " , event.type);
-        switch (event.type) {
+    if (event.hasOwnProperty("type") || event.hasOwnProperty("event")) {
+        let event_type;
+        if(event.hasOwnProperty("event")) { event_type = event.event.type; } else if (event.hasOwnProperty("type")) { event_type = event.type; }
+        if(log) console.log("STKR - Event Type: " , event_type);
+        switch (event_type) {
             case "url_verification": 
                 // ==#####== VERIFY EVENT CALLBACK URL ==#####==
                 if(log) console.log("STKR - URL Verification");
                 result = slackhelpers.verify(event.challenge, event.token, v_token); 
                 break;
-            case "event_callback":
+            case "app_uninstalled": 
+                // ==#####== APP UNINSTALLED _ DELETE ALL DATA FOR THAT WORKSPACE ==#####==
+                if(log) console.log("STKR - App Uninstalled");
+                team_id = slacktools.getTeamId(event.team_id, env);
+                const emptied = await awstools.emptyS3Directory({team_id: team_id});
+                const detokened = await awstools.deleteFromDynamo({team_id: team_id});
+                break;
+            case "file_shared":
+                //"event_callback":
                 // ==#####== FILE SHARED ==#####==
                 // ==#####== MUST CREATE NEW CONVERSATION - NONE EXISTS YET ==#####==
                 if(log) console.log("STKR - Event Callback");
@@ -93,13 +123,14 @@ exports.handler = async function(data, context) {
                     api_method: "conversations.open"
                 });
                 // ==#####== CHECK MAX IMAGES ==#####==
+                team_id = slacktools.getTeamId(event.team_id, env) ;
                 let img_count = await awstools.getCount({
-                    team_id : event.team_id,
+                    team_id : team_id,
                 });
                 // ==#####== TOO MANY IMAGES ==#####==
                 if(img_count >= maxImages){
                     let maxImgMessage = await slackhelpers.processApiMsg({
-                        token:b_token,
+                        token: b_token,
                         channel: convo.channel.id,
                         text: "Stkr has already uploaded the maximum number of images (" + maxImages + "). \n" + 
                             "You can make more room by deleting images with /stkrdelete .",
@@ -123,11 +154,12 @@ exports.handler = async function(data, context) {
                 break;
             case "block_actions":
                 // ==#####== PROCESS IMAGE CONFIRMATION ==#####==
+                team_id =slacktools.getTeamId(event.team.id, env);
                 if(log) console.log("STKR - Block Actions ; ", event.actions[0].action_id);
                 let uploadData = {
                     file_id: event.actions[0].value,
                     user_id: event.user.id,
-                    team_id: event.team.id,
+                    team_id: team_id,
                     response_url: event.response_url,
                     b_token: b_token,
                     v_token: v_token
@@ -139,6 +171,7 @@ exports.handler = async function(data, context) {
                 }
                 break;
             case "interactive_message":
+                team_id = slacktools.getTeamId(event.team.id, env) ;
                 if(log) console.log("STKR - Interactive Message");
                 // ==#####== INTERACTIVE MENU ITEM ==#####==
                 if(event.actions[0].value == "stkr-share-cancel"){
@@ -155,7 +188,7 @@ exports.handler = async function(data, context) {
                     // ==#####== IMAGE SHARE LIST CHOSEN ==#####==
                     var imgShareData = {
                         filename: event.actions[0].selected_options[0].value,
-                        team_id: event.team.id,
+                        team_id: team_id,
                         username: event.user.name
                     };
                     result = await slackhelpers.shareImageMessage(imgShareData);
@@ -163,7 +196,7 @@ exports.handler = async function(data, context) {
                     // ==#####== STKR DELETE LIST CHOSEN ==#####==
                     var imgDeleteData = {
                         filename: event.actions[0].selected_options[0].value,
-                        team_id: event.team.id,
+                        team_id: team_id,
                     };
                     let deleteTxt = await awstools.deleteImgFromS3(imgDeleteData);
                     result = await slackhelpers.returnDeleteComplete(deleteTxt);
@@ -178,29 +211,43 @@ exports.handler = async function(data, context) {
     
     // ==#####== SLASH COMMANDS ==#####== 
     if(event.command) {
-        if(event.command == "/stkr"){
+        team_id = slacktools.getTeamId(event.team_id, env);
+        if((event.command == "/stkr") || (event.command == "/stkrdev")){
             if(event.text) {
                 // ==#####== SHARE IMAGE BY TEXT ==#####==
-                result = await slackhelpers.getImageURL(event);
+                // ==#####== SLASH COMMAND WITH TEXT ==#####==
+                // result = await slackhelpers.getImageURL(event);
+                const slashData = {
+                    env: env
+                };
+                result = await slackhelpers.processSlashCommand(event, slashData);
             } else if (event.text.length == 0) {
                 // ==#####== SHARE IMAGE BY LIST ==#####==
                 let img_count = await awstools.getCount({
-                    team_id : event.team_id,
+                    team_id : team_id,
                 });
                 if(img_count == 0){
                     result = await slackhelpers.returnNoList();
                 } else {
-                    data = await awstools.getList(event);
+                    data = await awstools.getList({
+                        team_id : team_id,
+                    });
                     result = await slackhelpers.returnShareList(data);
                 }
             }
-        } else if (event.command == "/stkrdelete"){
+        } else if ((event.command == "/stkrdelete") || (event.command == "/stkrdevdelete")){
             if(event.text) {
                 // ==#####== DELETE IMAGE BY TEXT ==#####==
                 // result = await getImageURL(event);
+                const slashData = {
+                    env: env
+                };
+                result = await slackhelpers.processSlashCommand(event, slashData);
             } else if (event.text.length == 0) {
                 // ==#####== DELETE IMAGE BY LIST ==#####==
-                data = await awstools.getList(event);
+                data = await awstools.getList({
+                    team_id : team_id,
+                });
                 result = await slackhelpers.returnDeleteList(data);
             }
         }
