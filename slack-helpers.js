@@ -14,11 +14,11 @@ const log = true;
 
 exports.processApiMsg = processApiMsg;
 async function processApiMsg(data) {
-    // ===== VERIFY TO UPLOAD =====
+    // ==#####== VERIFY TO UPLOAD ==#####==
     let message = {
         token: data.token ? data.token : null ,
-        delete_original: false,
-        replace_original: true,
+        delete_original: data.delete_original ? data.delete_original : false,
+        replace_original: data.replace_original ? data.replace_original : false,
         channel: data.channel ? data.channel : null , //fileInfo.file.user
         users: data.users ? data.users : null ,
         return_im: data.return_im ? data.return_im : false,
@@ -32,6 +32,33 @@ async function processApiMsg(data) {
     };
     let result = await slacktools.slackApiPost(message, msgData);
     return result;
+}
+
+
+
+
+
+
+exports.returnNoList = returnNoList;
+async function returnNoList(){
+    if(log) console.log("RETURNNOLIST ");
+    let result = {
+        text: "There are no images in Stkr yet.",
+        response_type: "ephemeral",
+        delete_original: false,
+        replace_original: false,
+        attachments: [{
+            text: "No images have been uploaded to Stkr to share with your teammates. \n" + 
+            "Drag and drop an image here or in the Stkr App channel to upload and share. \n" + 
+            "There is a limit of " + maxImages + " images that can be uploaded and shared.",
+            fallback: "There are no images in Stkr yet.",
+            color: "#336699",
+            attachment_type : "default",
+            callback_id: "stkr-share-none",
+        }]
+    };
+    if(log) console.log("RETURNNOLIST - Result : ", JSON.stringify(result));
+    return(result);
 }
 
 
@@ -106,7 +133,7 @@ async function shareImageMessage(data){
 exports.verify = verify;
 function verify(e_challenge, e_token, v_token) {
     var result;
-    // ===== CHALLENGE =====
+    // ==#####== CHALLENGE ==#####==
     if (e_token === v_token) {
         result = { challenge: e_challenge };
     } else {
@@ -129,13 +156,13 @@ function verify(e_challenge, e_token, v_token) {
 exports.processUploadApproved = processUploadApproved;
 async function processUploadApproved(data){
     
-    // ===== GET FILE INFO =====
+    // ==#####== GET FILE INFO ==#####==
     if(log) console.log("PROCESS UPLOAD APPROVED - DATA : ", data);
     if(log) console.log("PROCESS UPLOAD APPROVED - FILE ID : ", data.file_id);
     let fileInfo = await slacktools.getFileInfo(data.file_id, data.b_token);
     if(log) console.log("PROCESS UPLOAD APPROVED - URL_PRIVATE : ", fileInfo.file.url_private);
 
-    // ===== IS IMAGE =====
+    // ==#####== IS IMAGE ==#####==
     var isImage = false;
     if((fileInfo.file.filetype !== "jpg") && (fileInfo.file.filetype !== "png")) {
         if(log) console.log("UPLOADIMGTOS3 - Unsupported file type: " + fileInfo.file.name);
@@ -154,7 +181,7 @@ async function processUploadApproved(data){
         isImage = true;
     }
     
-    // ===== UPLOAD IMAGE =====
+    // ==#####== UPLOAD IMAGE ==#####==
     let imgBuffer = await slacktools.fetchImage({
         url: fileInfo.file.url_private,
         b_token: data.b_token
@@ -164,12 +191,12 @@ async function processUploadApproved(data){
         filename: fileInfo.file.name
     });
 
-    // ===== GET COUNT =====
+    // ==#####== GET COUNT ==#####==
     let img_count = await awstools.getCount({
         team_id : data.team_id,
     });
     
-    // ===== RETURN MESSAGE =====
+    // ==#####== RETURN MESSAGE ==#####==
     let tyMsg = {
         token: data.b_token,
         channel: fileInfo.file.user, 
@@ -186,7 +213,7 @@ async function processUploadApproved(data){
     if(log) console.log("PROCESS UPLOAD APPROVED - TY DATA : ", tyData);
     let tyPostMsg = await slacktools.slackApiPost(tyMsg, tyData);
 
-    // ===== END =====
+    // ==#####== END ==#####==
     return null;
 }
 
