@@ -1,7 +1,11 @@
 console.log('Loading tools-aws');
-var AWS = require("aws-sdk");
+const AWS = require("aws-sdk");
+AWS.config.update({region: 'us-east-2'});
 const S3 = new AWS.S3();
+const DDB = new AWS.DynamoDB({apiVersion: '2012-08-10'});
+const DDBCLIENT = new AWS.DynamoDB.DocumentClient();
 const stkrBucket = "stkr-bucket";
+const stkrDB = "stkr-tokens";
 const log = true;
 
 
@@ -28,7 +32,7 @@ async function isS3Object(data){
 
 exports.uploadImgToS3 = uploadImgToS3;
 async function uploadImgToS3(buffer, data){
-    // ===== REPLACE SPACES WITH DASHES =====
+    // ==#####== REPLACE SPACES WITH DASHES ==#####==
     var filename = data.filename.replace(/\s+/g, '-');
     const params = {
         Bucket: stkrBucket,
@@ -107,4 +111,102 @@ async function getList(event){
     }
     if(log) console.log("GETLIST - Data : ", JSON.stringify(images));
     return(images);
+}
+
+
+
+
+exports.writeToDynamo = writeToDynamo;
+async function writeToDynamo(data){
+    if(log) console.log("WRITETODYNAMO - Data", data);
+    var params = {
+        TableName: stkrDB,
+        Item: {
+            team_id : {S: data.team_id},
+            access_token : {S: data.access_token},
+            response : {S: JSON.stringify(data.response)}
+        }
+    };
+    return new Promise((resolve, reject) => {
+        DDB.putItem(params, (error) => {
+            if (error) {
+                if(log) console.log("WRITETODYNAMO - Error", error);
+                reject(error);
+            } else {
+                if(log) console.log("WRITETODYNAMO - Success");
+                resolve("Data written to dynamo succesfully.");
+            }
+        });
+    });
+}
+
+
+
+
+/* 
+exports.readFromDynamo = readFromDynamo;
+async function readFromDynamo(data){
+    if(log) console.log("READFROMDYNAMO - Data", data);
+    var params = {
+        TableName: stkrDB,
+        Key: { team_id : {S: data.team_id} }//,
+        //ProjectionExpression: 'ATTRIBUTE_NAME'
+    };
+    console.log("READFROMDYNAMO - Params : ", params)
+    return new Promise((resolve, reject) => {
+        DDB.getItem(params, (error, getData) => {
+            if (error) {
+                if(log) console.log("READFROMDYNAMO - Error", error);
+                reject(error);
+            } else {
+                if(log) console.log("READFROMDYNAMO - Success" - getData);
+                resolve(getData);
+            }
+        });
+    });
+}
+*/
+
+
+
+
+
+
+exports.readFromDynamo = readFromDynamo;
+/* 
+async function readFromDynamo(data){
+    if(log) console.log("READFROMDYNAMO - Data", data);
+    var params = {
+        TableName: stkrDB,
+        Key: { "team_id" : data.team_id } //,
+        //ProjectionExpression: 'ATTRIBUTE_NAME'
+    };
+    console.log("READFROMDYNAMO - Params : ", params)
+    return new Promise((resolve, reject) => {
+        DDBCLIENT.get(params, function(error, getData){
+            if (error) {
+                if(log) console.log("READFROMDYNAMO - Error", error);
+                reject(error);
+            } else {
+                if(log) console.log("READFROMDYNAMO - Success" - getData);
+                resolve(getData);
+            }
+        });
+    });
+}
+*/
+async function readFromDynamo(data){
+    if(log) console.log("READFROMDYNAMO - Data", data);
+    try {
+        var params = {
+            TableName: stkrDB ,
+            Key: { "team_id" : {S: data.team_id } } 
+        };
+        var result = await DDB.getItem(params).promise();
+        if(log) console.log("READFROMDYNAMO - Success");
+        console.log(result);
+        return result;
+    } catch (error) {
+        if(log) console.log("READFROMDYNAMO - Error", error);
+    }
 }

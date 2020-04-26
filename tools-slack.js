@@ -23,7 +23,7 @@ function querystringToJSON(qs) {
 
 exports.getFileInfo = getFileInfo;
 async function getFileInfo(file_id, b_token){
-    // ===== GET FILE INFO =====
+    // ==#####== GET FILE INFO ==#####==
     if(log) console.log("FILEINFO - FILE ID : ", file_id);
     var message = { 
         token: b_token,
@@ -110,9 +110,54 @@ async function fetchImage(data){
 
 
 
+exports.slackApiGet = slackApiGet;
+async function slackApiGet(message, data){
+    // ==#####== SLACK API GET ==#####==
+    if(log) console.log("SLACKAPIGET - Message : ", message);
+    if(log) console.log("SLACKAPIGET - Data : ", data);
+    var qstring = QS.stringify(message);
+    if(log) console.log("SLACKAPIGET - Request QString : ", qstring);
+    var options = {
+        method: "GET",
+        port: 443,
+        protocol: "https:",
+        hostname: "slack.com",
+        path: "/api/" + data.api_method + "?" + qstring
+    };
+    if(log) console.log("SLACKAPIGET - Request File Options : ", options);
+    let retJSON = '';
+    return new Promise(function(resolve, reject) {
+        const request = HTTPS.request(options, function(res) {
+            if(log) console.log('SLACKAPIGET - Request Status Code:', res.statusCode);
+            if(log) console.log('SLACKAPIGET - Request Headers:', res.headers);
+            res.setEncoding( 'utf8' );
+            res.on("data", function(data) { 
+                retJSON += data; 
+            });
+            res.on("end", function () {
+                if(log) console.log("SLACKAPIGET - Response Results", retJSON.toString());
+                resolve(JSON.parse(retJSON));
+            });
+        });
+        request.on("error", function (error) { 
+            if(log) console.log("SLACKAPIGET ERROR : ", JSON.stringify(error));
+            if(log) console.log("SLACKAPIGET ERROR Code : ", JSON.stringify(error.code));
+            if(log) console.log("SLACKAPIGET ERROR Message : ", JSON.stringify(error.message));
+            if(log) console.log("SLACKAPIGET ERROR Stack : ", JSON.stringify(error.stack));
+            reject(error);
+        });
+        request.end();
+        if(log) console.log("SLACKAPIGET - Request Results : ", request);
+    });
+}
+
+
+
+
+
 exports.slackApiPost = slackApiPost;
 async function slackApiPost(message, data){
-    // ===== CHAT POST MESSAGE ======
+    // ==#####== SLACK API POST ==#####===
     if(log) console.log("SLACKAPIPOST - Message : ", message);
     if(log) console.log("SLACKAPIPOST - Data : ", data);
     var url;
