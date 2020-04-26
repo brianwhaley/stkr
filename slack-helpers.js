@@ -38,6 +38,54 @@ async function processApiMsg(data) {
 
 
 
+exports.processSlashCommand = processSlashCommand;
+async function processSlashCommand(event, data){
+    if(log) console.log("PROCESS SLASH COMMAND - Event : ", event);
+    if(log) console.log("PROCESS SLASH COMMAND - Text : ", event.text);
+    let result ;
+    switch (event.text) {
+        case "help": 
+            if(log) console.log("PROCESS SLASH COMMAND - Help");
+            result = "* Type /stkr to get a list of images to share with your teammates. \n" + 
+            "* Commands include help, bug, support, list, and delete. \n" + 
+            "* Drag and drop a JPG or PNG to upload to Stkr so others can share. \n" + 
+            "* There is a maximum of 50 images that can be uploaded per workspace. \n" + 
+            "* Type /stkrdelete to get a list of images to remove if you upload too many.";
+            break;
+        case "bug": 
+            if(log) console.log("PROCESS SLASH COMMAND - Bug");
+            result = "If you want to report a bug, email brian.whaley@gmail.com or " +
+            "join the bug channel on the pixelated-tech.slack.com workspace.";
+            break;
+        case "support": 
+            if(log) console.log("PROCESS SLASH COMMAND - Support");
+            result = "If you need some support, email brian.whaley@gmail.com or " +
+            "join the support channel on the pixelated-tech.slack.com workspace.";
+            break;
+        case "list": 
+            if(log) console.log("PROCESS SLASH COMMAND - List");
+            let listdata = await awstools.getList({
+                team_id : slacktools.getTeamId(event.team_id, data.env)
+            });
+            var items = listdata.map(item => { return item.value; });
+            result = items.join(" \n ");
+            break;
+        case "delete": 
+            if(log) console.log("PROCESS SLASH COMMAND - Delete");
+            result = "To delete an image, type /stkrdelete.  You will be presented with " +
+            "a list of images that can be deleted.  Pick one, and it will be deleted.";
+            break;
+        default: 
+            if(log) console.log("PROCESS SLASH COMMAND - Default");
+            result = "Stkr: Unknown Image or Command";
+    }
+    return {
+        response_type: 'ephemeral',
+        text: result
+    };
+}
+
+
 
 exports.returnNoList = returnNoList;
 async function returnNoList(){
@@ -226,7 +274,8 @@ async function processUploadDeclined(data){
     let message = {
         token: data.b_token,
         channel: data.user_id, //fileInfo.file.user
-        text: "Thank you.  File " + data.file_id + " will not be uploaded to Stkr",
+        // text: "Thank you.  File " + data.file_id + " will not be uploaded to Stkr",
+        text: "Thank you.  The im will not be uploaded to Stkr",
         // response_type: "ephemeral",
         delete_original: false,
         replace_original: true,
