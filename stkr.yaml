@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: version 1.0.0
+Resources:
+  stkr:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs12.x
+      CodeUri: .
+      Description: version 1.0.0
+      MemorySize: 128
+      Timeout: 3
+      Role: 'arn:aws:iam::971579260814:role/service-role/stkr-role-k73ky253'
+      Tags:
+        'lambda-console:blueprint': hello-world
