@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: Stkr Endpoint
+Description: 'S3 and URL image storage, lots of refactoring'
 Resources:
   stkr:
     Type: 'AWS::Serverless::Function'
@@ -8,13 +8,9 @@ Resources:
       Handler: index.handler
       Runtime: nodejs12.x
       CodeUri: .
-      Description: Stkr Endpoint
+      Description: 'S3 and URL image storage, lots of refactoring'
       MemorySize: 128
       Timeout: 3
       Role: 'arn:aws:iam::971579260814:role/service-role/stkr-role-k73ky253'
-      Environment:
-        Variables:
-          ACCESS_TOKEN: xoxb-1058085085824-1049448834533-fPif8spBWoPThlaTXYmyqQrL
-          VERIFICATION_TOKEN: YWPcJEqpNeMAbbHutY8PmRni
       Tags:
         'lambda-console:blueprint': hello-world
