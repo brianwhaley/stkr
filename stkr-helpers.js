@@ -5,6 +5,7 @@ var slacktools = require("./tools-slack");
 
 const maxImages = 50;
 const maxFileSize = 200;
+const email = "stkr@pixelated.tech" ;
 const log = true;
 
 
@@ -30,12 +31,12 @@ async function processSlashCommand(event, data){
             break;
         case "bug": 
             if(log) console.log("PROCESS SLASH COMMAND - Bug");
-            result = "If you want to report a bug, email brian.whaley@gmail.com or " +
+            result = "If you want to report a bug, email " + email + " or " +
             "join the bug channel on the pixelated-tech.slack.com workspace.";
             break;
         case "support": 
             if(log) console.log("PROCESS SLASH COMMAND - Support");
-            result = "If you need some support, email brian.whaley@gmail.com or " +
+            result = "If you need some support, email " + email + " or " +
                 "join the support channel on the pixelated-tech.slack.com workspace.";
             break;
         case "settings": 
@@ -467,7 +468,7 @@ async function getURLList(event, data){
     // ==#####== GENERATE LIST ==#####==
     var image_list = images.Items.map(item => { 
         return "* " + item.image_name ;
-    });
+    }).sort();
     if(log) console.log("GET URL LIST - Images List : ", image_list);
     // ==#####== PACKAGE THE MESSAGE ==#####==
     if(image_list.length < 1) {
@@ -825,6 +826,8 @@ async function shareURLImage(event, data){
         key_cond_expr: "team_id = :teamid",
         attrib_vals: { ":teamid": data.team_id }
     });
+    // ==#####== SORT IMAGES ==#####==
+    images.Items.sort(slacktools.sortByProperty("image_name"));
     if(log) console.log("SHARE URL IMAGE - Images : ", images);
     if(log) console.log("SHARE URL IMAGE - Images Items Length : ", images.Items.length);
     if(images.Items.length == 0){
@@ -968,6 +971,8 @@ async function deleteURLImage(event, data){
         key_cond_expr: "team_id = :teamid",
         attrib_vals: { ":teamid": data.team_id }
     });
+    // ==#####== SORT IMAGES ==#####==
+    images.Items.sort(slacktools.sortByProperty("image_name"));
     if(log) console.log("DELETE URL IMAGE - Images : ", images);
     if(log) console.log("DELETE URL IMAGE - Images Items Length : ", images.Items.length);
     if(images.Items.length == 0){

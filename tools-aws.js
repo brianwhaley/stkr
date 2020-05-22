@@ -11,9 +11,10 @@ const stkrS3Bucket = exports.stkrS3Bucket = "stkr-bucket";
 const stkrTokenDB = exports.stkrTokenDB = "stkr-tokens";
 const stkrImageDB = exports.stkrImageDB = "stkr-images";
 const stkrLogDB = exports.stkrLogDB = "stkr-logs";
-const jokesTokenDB = exports.jokesTokenDB = "tech-jokes-tokens";
-const jokesScheduleDB = exports.jokesScheduleDB = "tech-jokes-schedule";
-const jokesDB = exports.jokesDB = "tech-jokes";
+const jokesTokenDB = exports.jokesTokenDB = "nerdjokes-tokens";
+const jokesDB = exports.jokesDB = "nerdjokes";
+const jokesScheduleDB = exports.jokesScheduleDB = "nerdjokes-schedule";
+const jokesLogDB = exports.jokesLogDB = "nerdjokes-logs";
 const log = true;
 
 
@@ -366,13 +367,13 @@ exports.sendEmail = sendEmail;
 async function sendEmail(data){
     var params = {
         Destination: {
-            ToAddresses: ["brian.whaley@gmail.com"]
+            ToAddresses: [ data.to ]
         },
         Message: {
             Body: { Text: { Data: data.subject } },
             Subject: { Data: data.subject }
         },
-        Source: "brian.whaley@gmail.com"
+        Source: data.from
     };
     return new Promise((resolve, reject) => {
         SES.sendEmail(params, function (error, emaildata) {

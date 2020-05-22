@@ -6,6 +6,8 @@ const HTTP = require('http');
 const HTTPS = require('https');
 const URL = require('url');
 const QS = require('querystring');
+
+const stkr_url = "https://pixelated.tech/stkr.html";
 const log = true;
 
 
@@ -32,6 +34,20 @@ function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+
+
+
+exports.sortByProperty = sortByProperty;
+function sortByProperty(property){  
+   return function(a,b){  
+      if(a[property] > b[property])  
+         return 1;  
+      else if(a[property] < b[property])  
+         return -1;
+      return 0;  
+   }; 
 }
 
 
@@ -83,10 +99,15 @@ async function urlExists(url) {
 
 exports.getTeamId = getTeamId;
 function getTeamId(event, env){
+    if(log) console.log("GET TEAM ID ");
+    if(log) console.log("GET TEAM ID - Event : ", event);
+    if(log) console.log("GET TEAM ID - ENV : ", env);
     var team_id ;
     if (event.team_id) { team_id = event.team_id ;
     } else if(event.team.id) {  team_id = event.team.id ; }
-    return (env != "PROD") ? team_id + "-" + env : team_id ;
+    var retval = (env != "PROD") ? team_id + "-" + env : team_id ;
+    if(log) console.log("GET TEAM ID - Ret Val : ", retval);
+    return retval ;
 }
 
 
@@ -94,12 +115,14 @@ function getTeamId(event, env){
 
 exports.urlVerify = urlVerify;
 function urlVerify(e_challenge, e_token, v_token) {
+    if(log) console.log("URL VERIFY - Event Challenge ");
+    if(log) console.log("URL VERIFY - E-C, E-T, V-T : ", e_challenge, e_token, v_token);
     var result;
     // ==#####== CHALLENGE ==#####==
     if (e_token === v_token) {
         result = { challenge: e_challenge };
     } else {
-        result = "Stkr: Verification Failed";   
+        result = "URL VERIFY - Verification Failed";   
     }
     if(log) console.log("VERIFICATION - Results : ", result);
     return {
@@ -150,7 +173,7 @@ async function oAuthVerify(event, data) {
     return {
         statusCode: 302,
         headers: {
-            "Location": "https://pixelated.tech/stkr.html"
+            "Location": stkr_url
         },
         body: null
     };
@@ -183,7 +206,7 @@ async function logEvent(event, data){
     var channelId = null ;
     if (event.channel_id){ channelId = event.channel_id; } 
     else if (event.channel){ channelId = event.channel.id ; } 
-    else if (event.view && event.viewprivate_metadata) { channelId = JSON.parse(event.view.private_metadata).channel_id ; }
+    else if (event.view && event.view.private_metadata) { channelId = JSON.parse(event.view.private_metadata).channel_id ; }
     else { channelId = "." ; }
     
     var logged = await awstools.writeToDynamo({
