@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
-Description: 'S3 and URL image storage, lots of refactoring'
+Description: change email addresses
 Resources:
   stkr:
     Type: 'AWS::Serverless::Function'
@@ -8,7 +8,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs12.x
       CodeUri: .
-      Description: 'S3 and URL image storage, lots of refactoring'
+      Description: change email addresses
       MemorySize: 128
       Timeout: 3
       Role: 'arn:aws:iam::971579260814:role/service-role/stkr-role-k73ky253'

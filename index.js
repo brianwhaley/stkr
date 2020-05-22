@@ -16,7 +16,6 @@ exports.handler = async function(data, context) {
     if(log) console.log('STKR - Received DATA:', JSON.stringify(data));
     const stageVars = data.stageVariables;
     if(log) console.log('STKR - Received Stage Variables:', JSON.stringify(stageVars));
-    // const a_token = stageVars.ACCESS_TOKEN;
     let b_token ; // = stageVars.BOT_TOKEN;
     const v_token = (stageVars) ? stageVars.VERIFICATION_TOKEN : undefined ;
     const c_id = (stageVars) ? stageVars.CLIENT_ID : undefined ;
@@ -31,7 +30,7 @@ exports.handler = async function(data, context) {
         if(log) console.log("STKR - RECEIVED POST");
         if(data.headers['Content-Type'] == "application/json"){
         if(log) console.log("STKR - RECEIVED POST - JSON");
-            event = JSON.parse(data.body);
+            event = (typeof data.body == "string") ? JSON.parse(data.body) : data.body ;
         } else if(data.headers['Content-Type'] == 'application/x-www-form-urlencoded' ){
             if(log) console.log("STKR - RECEIVED POST - URLENCODED");
             event = slacktools.querystringToJSON(data.body);
@@ -77,6 +76,7 @@ exports.handler = async function(data, context) {
         // ==#####== GET AUTH TOKEN ==#####==
         team_id = slacktools.getTeamId(event, env) ;
         if(log) console.log("STKR - Team ID : ", team_id);
+        
         const getAuth = await awstools.readFromDynamo({
             tablename: awstools.stkrTokenDB ,
             key_cond_expr: "team_id = :teamid",
@@ -172,12 +172,10 @@ exports.handler = async function(data, context) {
                     case "shareimage_select":
                         // ==#####== PROCESS URL IMAGE SHARE CONFIRMATION ==#####==
                         result = await stkrhelpers.shareURLImageProcess(event, uploadData);
-                        var logged = await slacktools.logEvent(event, { team_id: team_id });
                         break;
                     case "deleteimage_select":
                         // ==#####== PROCESS URL IMAGE SHARE CONFIRMATION ==#####==
                         result = await stkrhelpers.deleteURLImageProcess(event, uploadData); 
-                        var logged = await slacktools.logEvent(event, { team_id: team_id });
                         break;
                     case "sharelist_select":
                         // ==#####== PROCESS S3 IMAGE SHARE LIST CHOSEN ==#####==
@@ -188,7 +186,6 @@ exports.handler = async function(data, context) {
                             b_token: b_token
                         };
                         result = await stkrhelpers.shareS3ImageMessage(event, imgShareData);
-                        var logged = await slacktools.logEvent(event, { team_id: team_id });
                         break;
                     case "deletelist_select":
                         // ==#####== STKR DELETE LIST CHOSEN ==#####==
@@ -201,12 +198,10 @@ exports.handler = async function(data, context) {
                         };
                         const deleteTxt = await awstools.deleteImgFromS3(imgDeleteData);
                         result = await stkrhelpers.deleteS3ImageComplete(event, imgDeleteData);
-                        var logged = await slacktools.logEvent(event, { team_id: team_id });
                         break;
                     case "upload-confirm-yes":
                         // ==#####== PROCESS IMAGE UPLOAD CONFIRMATION ==#####==
                         result = await stkrhelpers.processUploadApproved(event, uploadData); 
-                        var logged = await slacktools.logEvent(event, { team_id: team_id });
                         break;
                     case "upload-confirm-no":
                         // ==#####== PROCESS IMAGE UPLOAD DECLINE ==#####==
@@ -223,6 +218,8 @@ exports.handler = async function(data, context) {
                         result = null;
                         break;
                 }
+                // ==#####== LOG EVENT ==#####==
+                var logged = await slacktools.logEvent(event, { team_id: team_id });
                 break;
             case "view_submission":
                 // ==#####== MODAL DIALOG BOX SUBMITTED ==#####==
@@ -230,7 +227,7 @@ exports.handler = async function(data, context) {
                 var viewdata = { 
                     team_id: team_id,
                     b_token: b_token
-                }
+                };
                 if(log) console.log("STKR - View Submission");
                 if(event.view.callback_id == 'newimage-submit'){
                     const submit = await stkrhelpers.addNewURLImageSubmit(event, viewdata);
@@ -242,6 +239,8 @@ exports.handler = async function(data, context) {
                     // ==#####== LOG EVENT ==#####==
                     var logged = await slacktools.logEvent(event, viewdata);
                 }
+                // ==#####== NULL SUBMIT CLOSES VIEW ==#####==
+                result = null;
                 break;
             case "view_closed":
                 // ==#####== DIALOG BOX CLOSED ==#####==
@@ -263,7 +262,7 @@ exports.handler = async function(data, context) {
     // ==#####== SLASH COMMANDS ==#####== 
     if(event.command) {
         team_id = slacktools.getTeamId(event, env);
-        if((event.command == "/stkr") || (event.command == "/stkrz")){
+        if((event.command == "/stkr") || (event.command == "/stkrz") || (event.command == "/stkrdev")){
             if (event.text.length == 0) {
                 // ==#####== IF NO SLASH COMMAND TEXT, DEFAULT TO SHARE ==#####==
                 event.text = "share" ;
