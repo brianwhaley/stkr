@@ -12,5 +12,11 @@ Resources:
       MemorySize: 128
       Timeout: 3
       Role: 'arn:aws:iam::971579260814:role/service-role/stkr-role-k73ky253'
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /MyResource
+            Method: ANY
       Tags:
         'lambda-console:blueprint': hello-world
